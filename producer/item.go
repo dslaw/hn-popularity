@@ -2,10 +2,24 @@ package main
 
 import (
 	"encoding/json"
+	"strconv"
 	"time"
 )
 
 type ItemID int64
+
+func NewItemIDFromString(s string) (id ItemID, err error) {
+	idInt, err := strconv.ParseInt(s, 10, 64)
+	if err != nil {
+		return
+	}
+	id = ItemID(idInt)
+	return
+}
+
+func ItemIDToString(id ItemID) string {
+	return strconv.FormatInt(int64(id), 10)
+}
 
 // QueuedItem represents an item to be processed.
 type QueuedItem struct {
