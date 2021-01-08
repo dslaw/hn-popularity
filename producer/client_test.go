@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"io/ioutil"
 	"net/http"
+	"strconv"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type RoundTripFunc func(req *http.Request) *http.Response
@@ -172,4 +174,43 @@ func TestHNClientGetItem(t *testing.T) {
 		assert.Equal(t, expected.ApiVersion, actual.ApiVersion)
 		assert.Equal(t, expected.RawItem, actual.RawItem)
 	}
+}
+
+func TestNewLatestProducer(t *testing.T) {
+	producer := NewLatestProducer(nil)
+	assert.False(t, producer.initialized)
+}
+
+func TestLatestProducerNext(t *testing.T) {
+	itemID := 1
+	client := NewTestClient(func(req *http.Request) *http.Response {
+		body := strconv.Itoa(itemID)
+		itemID++
+		return &http.Response{
+			StatusCode: 200,
+			Body:       ioutil.NopCloser(bytes.NewBufferString(body)),
+		}
+	})
+
+	producer := NewLatestProducer(client)
+
+	// First call initializes the producer and returns next.
+	actual, err := producer.Next()
+	require.Nil(t, err)
+	assert.Equal(t, ItemID(1), actual.ID)
+	assert.NotEqual(t, actual.CreatedAt, new(time.Time))
+
+	// Internal state is updated.
+	assert.Equal(t, ItemID(2), producer.itemID)
+	assert.Equal(t, ItemID(1), producer.maxItemID)
+
+	// Non-first call returns next.
+	actual, err = producer.Next()
+	require.Nil(t, err)
+	assert.Equal(t, ItemID(2), actual.ID)
+	assert.NotEqual(t, actual.CreatedAt, new(time.Time))
+
+	// Internal state is updated.
+	assert.Equal(t, ItemID(3), producer.itemID)
+	assert.Equal(t, ItemID(2), producer.maxItemID)
 }

@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strings"
+	"time"
 )
 
 // HNClient implements an HTTP client for Hacker News.
@@ -14,6 +15,22 @@ type HNClient struct {
 	ApiVersion  string
 	RetryWait   time.Duration
 	MaxAttempts int
+}
+
+func NewHNClient(
+	httpTimeout time.Duration,
+	baseURL string,
+	apiVersion string,
+	retryWait time.Duration,
+	maxAttempts int,
+) *HNClient {
+	return &HNClient{
+		client:      &http.Client{Timeout: httpTimeout},
+		BaseURL:     baseURL,
+		ApiVersion:  apiVersion,
+		RetryWait:   retryWait,
+		MaxAttempts: maxAttempts,
+	}
 }
 
 func (client *HNClient) get(url string) (body string, err error) {
@@ -93,4 +110,55 @@ func (client *HNClient) GetItem(id ItemID) (item *Item, err error) {
 
 	item, err = NewItem(id, client.ApiVersion, body)
 	return item, err
+}
+
+// LatestProducer is a producer that generates the latest items.
+type LatestProducer struct {
+	*HNClient
+	maxItemID   ItemID
+	itemID      ItemID
+	initialized bool
+}
+
+func NewLatestProducer(client *HNClient) *LatestProducer {
+	return &LatestProducer{client, ItemID(0), ItemID(0), false}
+}
+
+func (producer *LatestProducer) Next() (queuedItem *QueuedItem, err error) {
+	// Check initialized.
+	if !producer.initialized {
+		var maxItemID ItemID
+		maxItemID, err = producer.GetMaxItemID()
+		if err != nil {
+			return
+		}
+
+		producer.itemID = maxItemID
+		producer.maxItemID = maxItemID
+		producer.initialized = true
+	}
+
+	// Block until a new item is discovered.
+	for {
+		if producer.itemID <= producer.maxItemID {
+			break
+		}
+
+		producer.maxItemID, err = producer.GetMaxItemID()
+		if err != nil {
+			return
+		}
+	}
+
+	queuedItem = &QueuedItem{
+		ID:        producer.itemID,
+		FromQueue: false,
+		CreatedAt: time.Now().UTC(),
+	}
+	producer.itemID++
+	return
+}
+
+func (producer *LatestProducer) Name() string {
+	return "new"
 }
