@@ -24,7 +24,6 @@ func ItemIDToString(id ItemID) string {
 // QueuedItem represents an item to be processed.
 type QueuedItem struct {
 	ID        ItemID
-	FromQueue bool
 	CreatedAt time.Time
 }
 

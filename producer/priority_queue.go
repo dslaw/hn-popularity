@@ -14,15 +14,17 @@ type PriorityQueue struct {
 	client       *redis.Client
 	ctx          context.Context
 	QueueName    string
-	ExpiryWindow time.Duration
+	ProcessAfter time.Duration
+	GracePeriod  time.Duration
 }
 
-func NewPriorityQueue(client *redis.Client, name string) *PriorityQueue {
+func NewPriorityQueue(client *redis.Client, name string, processAfter time.Duration) *PriorityQueue {
 	return &PriorityQueue{
 		client:       client,
 		ctx:          context.Background(),
 		QueueName:    name,
-		ExpiryWindow: 0 * time.Second, // Indefinite.
+		ProcessAfter: processAfter,
+		GracePeriod:  1 * time.Minute,
 	}
 }
 
@@ -45,7 +47,6 @@ func zToQueuedItem(z redis.ZWithKey) (queuedItem *QueuedItem, err error) {
 
 	queuedItem = &QueuedItem{
 		ID:        ItemID(id),
-		FromQueue: true,
 		CreatedAt: time.Unix(createdAt, 0),
 	}
 	return
@@ -67,4 +68,10 @@ func (pq *PriorityQueue) Next() (queuedItem *QueuedItem, err error) {
 
 func (pq *PriorityQueue) Name() string {
 	return pq.QueueName
+}
+
+func (pq *PriorityQueue) ProcessAt(queuedItem *QueuedItem) (time.Time, bool) {
+	processAt := queuedItem.CreatedAt.Add(pq.ProcessAfter)
+	expired := processAt.Add(pq.GracePeriod).Before(time.Now().UTC())
+	return processAt, expired
 }

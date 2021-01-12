@@ -214,3 +214,14 @@ func TestLatestProducerNext(t *testing.T) {
 	assert.Equal(t, ItemID(3), producer.itemID)
 	assert.Equal(t, ItemID(2), producer.maxItemID)
 }
+
+func TestLatestProducerProcessAt(t *testing.T) {
+	producer := NewLatestProducer(nil)
+	queuedItem := &QueuedItem{
+		ID:        ItemID(1),
+		CreatedAt: time.Now().UTC(),
+	}
+
+	_, expired := producer.ProcessAt(queuedItem)
+	assert.False(t, expired)
+}

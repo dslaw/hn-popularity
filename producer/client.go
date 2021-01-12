@@ -152,7 +152,6 @@ func (producer *LatestProducer) Next() (queuedItem *QueuedItem, err error) {
 
 	queuedItem = &QueuedItem{
 		ID:        producer.itemID,
-		FromQueue: false,
 		CreatedAt: time.Now().UTC(),
 	}
 	producer.itemID++
@@ -161,4 +160,8 @@ func (producer *LatestProducer) Next() (queuedItem *QueuedItem, err error) {
 
 func (producer *LatestProducer) Name() string {
 	return "new"
+}
+
+func (producer *LatestProducer) ProcessAt(queuedItem *QueuedItem) (time.Time, bool) {
+	return time.Now().UTC(), false
 }
