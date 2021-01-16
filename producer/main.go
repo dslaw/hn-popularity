@@ -33,14 +33,17 @@ func GetQueueConfig(inQueueName string) (*string, time.Duration, bool) {
 			Queue:        "new",
 			ProcessAfter: 0 * time.Second,
 		}, {
-			Queue:        "queue:15m",
-			ProcessAfter: 15 * time.Minute,
-		}, {
 			Queue:        "queue:30m",
 			ProcessAfter: 30 * time.Minute,
 		}, {
 			Queue:        "queue:1h",
 			ProcessAfter: 1 * time.Hour,
+		}, {
+			Queue:        "queue:3h",
+			ProcessAfter: 3 * time.Hour,
+		}, {
+			Queue:        "queue:6h",
+			ProcessAfter: 6 * time.Hour,
 		},
 	}
 
