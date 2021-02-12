@@ -10,57 +10,6 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-const (
-	httpTimeout = 15 * time.Second
-	apiVersion  = "v0"
-	baseURL     = "https://hacker-news.firebaseio.com"
-	retryWait   = 1 * time.Second
-	maxAttempts = 5
-)
-
-func GetQueueConfig(inQueueName string) (*string, time.Duration, bool) {
-	var (
-		outQueueName *string
-		processAfter time.Duration
-		found        bool
-	)
-
-	queues := []struct {
-		Queue        string
-		ProcessAfter time.Duration
-	}{
-		{
-			Queue:        "new",
-			ProcessAfter: 0 * time.Second,
-		}, {
-			Queue:        "queue:30m",
-			ProcessAfter: 30 * time.Minute,
-		}, {
-			Queue:        "queue:1h",
-			ProcessAfter: 1 * time.Hour,
-		}, {
-			Queue:        "queue:3h",
-			ProcessAfter: 3 * time.Hour,
-		}, {
-			Queue:        "queue:6h",
-			ProcessAfter: 6 * time.Hour,
-		},
-	}
-
-	for idx, queue := range queues {
-		if queue.Queue == inQueueName {
-			found = true
-			processAfter = queue.ProcessAfter
-			nextIdx := idx + 1
-			if nextIdx < len(queues) {
-				outQueueName = &queues[nextIdx].Queue
-			}
-		}
-	}
-
-	return outQueueName, processAfter, found
-}
-
 type ItemRepo interface {
 	Save(*Item, string) error
 }
@@ -147,7 +96,12 @@ func main() {
 	databaseURL := GetEnv("PRODUCER_DATABASE_URL")
 	queueURL := GetEnv("PRODUCER_QUEUE_URL")
 
-	outQueueName, processAfter, exists := GetQueueConfig(inQueueName)
+	config, err := NewConfigFromFile("config.yml")
+	if err != nil {
+		log.Panicf("Error reading 'config.yml': %s", err)
+	}
+
+	inQueueConfig, exists := config.Channels[inQueueName]
 	if !exists {
 		log.Panicf("No such input queue: %s", inQueueName)
 	}
@@ -168,21 +122,27 @@ func main() {
 	}
 	rdb := redis.NewClient(opt)
 
+	client := NewHNClient(
+		config.Client.HTTPTimeout,
+		config.Client.BaseURL,
+		config.Client.APIVersion,
+		config.Client.RetryWait,
+		config.Client.MaxAttempts,
+	)
+
 	var (
 		producer Producer
 		outQueue *PriorityQueue
 	)
-
-	client := NewHNClient(httpTimeout, baseURL, apiVersion, retryWait, maxAttempts)
 	if inQueueName == "new" {
 		producer = NewLatestProducer(client)
 	} else {
-		producer = NewPriorityQueue(rdb, inQueueName, processAfter)
+		producer = NewPriorityQueue(rdb, inQueueName, inQueueConfig.ProcessAfter)
 	}
-	if outQueueName != nil {
+	if inQueueConfig.Next != nil {
 		// `processAfter` argument isn't used for the output queue.
 		outProcessAfter := 0 * time.Second
-		outQueue = NewPriorityQueue(rdb, *outQueueName, outProcessAfter)
+		outQueue = NewPriorityQueue(rdb, *inQueueConfig.Next, outProcessAfter)
 	}
 
 	Process(producer, client, outQueue, store)
