@@ -1,0 +1,71 @@
+version: "3.7"
+
+services:
+  producer-new:
+    image: hn-producer
+    environment:
+      PRODUCER_DATABASE_URL: /app/data/hn_items.sqlite
+      PRODUCER_QUEUE_URL: redis://queue:6379
+      PRODUCER_IN_QUEUE: new
+    volumes:
+      - ./data:/app/data
+      - ./producer/config.yml:/app/config.yml
+    depends_on:
+      - queue
+
+  producer-30m:
+    image: hn-producer
+    environment:
+      PRODUCER_DATABASE_URL: /app/data/hn_items.sqlite
+      PRODUCER_QUEUE_URL: redis://queue:6379
+      PRODUCER_IN_QUEUE: queue:30m
+    volumes:
+      - ./data:/app/data
+      - ./producer/config.yml:/app/config.yml
+    depends_on:
+      - queue
+
+  producer-1h:
+    image: hn-producer
+    environment:
+      PRODUCER_DATABASE_URL: /app/data/hn_items.sqlite
+      PRODUCER_QUEUE_URL: redis://queue:6379
+      PRODUCER_IN_QUEUE: queue:1h
+    volumes:
+      - ./data:/app/data
+      - ./producer/config.yml:/app/config.yml
+    depends_on:
+      - queue
+
+  producer-3h:
+    image: hn-producer
+    environment:
+      PRODUCER_DATABASE_URL: /app/data/hn_items.sqlite
+      PRODUCER_QUEUE_URL: redis://queue:6379
+      PRODUCER_IN_QUEUE: queue:3h
+    volumes:
+      - ./data:/app/data
+      - ./producer/config.yml:/app/config.yml
+    depends_on:
+      - queue
+
+  producer-6h:
+    image: hn-producer
+    environment:
+      PRODUCER_DATABASE_URL: /app/data/hn_items.sqlite
+      PRODUCER_QUEUE_URL: redis://queue:6379
+      PRODUCER_IN_QUEUE: queue:6h
+    volumes:
+      - ./data:/app/data
+      - ./producer/config.yml:/app/config.yml
+    depends_on:
+      - queue
+
+  queue:
+    image: redis:6.0-alpine
+    command: redis-server --appendonly yes
+    volumes:
+      - queue-data:/data
+
+volumes:
+  queue-data:

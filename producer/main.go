@@ -96,7 +96,7 @@ func main() {
 	databaseURL := GetEnv("PRODUCER_DATABASE_URL")
 	queueURL := GetEnv("PRODUCER_QUEUE_URL")
 
-	config, err := NewConfigFromFile("config.yml")
+	config, err := NewConfigFromFile("/app/config.yml")
 	if err != nil {
 		log.Panicf("Error reading 'config.yml': %s", err)
 	}
